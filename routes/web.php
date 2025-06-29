@@ -10,4 +10,3 @@ Route::get('/', function () {
 Route::middleware('auth.token')->get('/protected', function () {
     return 'Hello, Authenticated User';
 });
-Route::post('/login', [AuthController::class, 'login'])->middleware('auth.token');
