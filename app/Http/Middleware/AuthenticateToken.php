@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
 use App\Models\UserSession;
@@ -11,23 +12,29 @@ class AuthenticateToken
 {
     public function handle(Request $request, Closure $next)
     {
-        $authHeader = $request->header('Authorization');
+        $token = $request->bearerToken();
 
-        if (!$authHeader || !str_starts_with($authHeader, 'Bearer ')) {
-            return response()->json(['message' => 'Authorization token required'], 401);
+        if (!$token) {
+            return response()->json(['message' => 'Unauthorized (no token)'], 401);
         }
 
-        $token = substr($authHeader, 7); // hapus "Bearer "
-
-        $userToken = UserSession::where('token', $token)
-            ->where('expires_at', '>', Carbon::now())
+        $session = UserSession::where('token', $token)
+            ->where('expires_at', '>', now())
             ->first();
 
-        if (!$userToken) {
-            return response()->json(['message' => 'Invalid or expired token'], 401);
+        if (!$session) {
+            return response()->json(['message' => 'Unauthorized (invalid or expired token)'], 401);
         }
 
-        $request->setUserResolver(fn () => $userToken->user);
+        $user = User::find($session->user_id);
+
+        if (!$user) {
+            return response()->json(['message' => 'User not found'], 401);
+        }
+
+        $request->setUserResolver(function () use ($user) {
+            return $user;
+        });
 
         return $next($request);
     }
